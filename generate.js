@@ -56,6 +56,12 @@ function generateRowsForArray(schema, path, schemas) {
     generateRowsForSchema(schema.items, newPath, schemas));
 }
 
+function generateRowsForBranch(type, schema, path, schemas) {
+  const rows = generateRowsForSchema(schema, path, schemas);
+  const message = 'There are other schemas for: ' + path.join('.');
+  return [['TODO', type, message]].concat(rows);
+}
+
 function generateRowsForCompleteSchema(schema, path, schemas) {
   if (schema.link) {
     return [formatRow(schema, path)];
@@ -69,11 +75,17 @@ function generateRowsForCompleteSchema(schema, path, schemas) {
   if (schema.properties) {
     return generateRowsForObject(schema, path, schemas);
   }
+  if (schema.oneOf) {
+    return generateRowsForBranch('oneOf', schema.oneOf[0], path, schemas);
+  }
+  if (schema.anyOf) {
+    return generateRowsForBranch('anyOf', schema.anyOf[0], path, schemas);
+  }
   return [formatRow(schema, path)];
 }
 
 function assign(destination, source) {
-  for (let key in source) {
+  for (let key in source) { // eslint-disable-line
     if (source.hasOwnProperty(key)) {
       destination[key] = source[key];
     }
