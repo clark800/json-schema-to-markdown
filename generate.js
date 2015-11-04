@@ -29,29 +29,38 @@ function formatType(schema) {
   return schema.type || schema.$ref || 'object';
 }
 
-function formatRow(schema, path) {
-  return [formatName(path), formatType(schema), schema.description || ''];
+function formatRow(schema, path, isRequired) {
+  const description = (isRequired ? '' : '*Optional* ')
+                    + (schema.description || '');
+  return [formatName(path), formatType(schema), description];
 }
 
 function flatten(arrays) {
   return [].concat.apply([], arrays);
 }
 
-function generateRowsForObject(schema, path, schemas) {
-  const rows = flatten(Object.keys(schema.properties).sort().map(name =>
-    generateRowsForSchema(
-      schema.properties[name], path.concat([name]), schemas)));
-  return path.length > 0 ? [formatRow(schema, path)].concat(rows) : rows;
+function includes(array, item) {
+  return array && array.indexOf(item) !== -1;
 }
 
-function generateRowsForArray(schema, path, schemas) {
-  const firstRow = formatRow(schema, path);
+function generateRowsForObject(schema, path, schemas, isRequired) {
+  const rows = flatten(Object.keys(schema.properties).sort().map(name => {
+    const isRequiredField = includes(schema.required, name);
+    return generateRowsForSchema(
+      schema.properties[name], path.concat([name]), schemas, isRequiredField);
+  }));
+  return path.length > 0 ?
+    [formatRow(schema, path, isRequired)].concat(rows) : rows;
+}
+
+function generateRowsForArray(schema, path, schemas, isRequired) {
+  const firstRow = formatRow(schema, path, isRequired);
   if (!schema.items.properties) {
     return [firstRow];
   }
   const newPath = path.slice(0, -1).concat([path.slice(-1)[0] + '[]']);
   return [firstRow].concat(
-    generateRowsForSchema(schema.items, newPath, schemas));
+    generateRowsForSchema(schema.items, newPath, schemas, true));
 }
 
 function removeDuplicates(rows) {
@@ -67,32 +76,34 @@ function removeDuplicates(rows) {
   return result;
 }
 
-function generateRowsForBranch(type, branchSchemas, path, schemas) {
+function generateRowsForBranch(type, branchSchemas, path, schemas, isRequired) {
   const rows = flatten(branchSchemas.map(branchSchema =>
-    generateRowsForSchema(branchSchema, path, schemas)));
+    generateRowsForSchema(branchSchema, path, schemas, isRequired)));
   return [['TODO', type, path.join('.')]].concat(removeDuplicates(rows));
 }
 
-function generateRowsForCompleteSchema(schema, path, schemas) {
+function generateRowsForCompleteSchema(schema, path, schemas, isRequired) {
   if (schema.link) {
-    return [formatRow(schema, path)];
+    return [formatRow(schema, path, isRequired)];
   }
   if (schema.type === 'array') {
     if (path.length > 0) {
-      return generateRowsForArray(schema, path, schemas);
+      return generateRowsForArray(schema, path, schemas, isRequired);
     }
-    return generateRowsForSchema(schema.items, path, schemas);
+    return generateRowsForSchema(schema.items, path, schemas, true);
   }
   if (schema.properties) {
-    return generateRowsForObject(schema, path, schemas);
+    return generateRowsForObject(schema, path, schemas, isRequired);
   }
   if (schema.oneOf) {
-    return generateRowsForBranch('oneOf', schema.oneOf, path, schemas);
+    return generateRowsForBranch(
+      'oneOf', schema.oneOf, path, schemas, isRequired);
   }
   if (schema.anyOf) {
-    return generateRowsForBranch('anyOf', schema.anyOf, path, schemas);
+    return generateRowsForBranch(
+      'anyOf', schema.anyOf, path, schemas, isRequired);
   }
-  return [formatRow(schema, path)];
+  return [formatRow(schema, path, isRequired)];
 }
 
 function assign(destination, source) {
@@ -115,9 +126,10 @@ function completeSchema(schema, schemas) {
   return schema;
 }
 
-function generateRowsForSchema(schema, path, schemas) {
+function generateRowsForSchema(schema, path, schemas, isRequired) {
   const completedSchema = completeSchema(schema, schemas);
-  return generateRowsForCompleteSchema(completedSchema, path, schemas);
+  return generateRowsForCompleteSchema(completedSchema, path, schemas,
+    isRequired);
 }
 
 function recursivelyListDirectory(directory) {
@@ -159,7 +171,7 @@ function main() {
   const filepath = process.argv[2];
   const schemas = process.argv.length > 3 ? loadSchemas(process.argv[3]) : {};
   const schema = loadSchema(filepath);
-  console.log(formatTable(generateRowsForSchema(schema, [], schemas)));
+  console.log(formatTable(generateRowsForSchema(schema, [], schemas, true)));
 }
 
 main();
