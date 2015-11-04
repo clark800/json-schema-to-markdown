@@ -4,8 +4,6 @@ const fs = require('fs');
 const join = require('path').join;
 
 // rows are represented as an array of three strings: name, type, description
-// TODO: make a table of objects like "address" and "amount" that link
-// to separate sections rather than getting expanded
 
 function formatTable(rows) {
   const header = ['Name', 'Type', 'Description'];
@@ -26,13 +24,13 @@ function formatName(path) {
 
 function formatType(schema) {
   if (schema.link) {
-    return '[' + schema.name + '](#' + schema.link + ')';
+    return '[' + schema.title + '](#' + schema.link + ')';
   }
   return schema.type || schema.$ref || 'object';
 }
 
 function formatRow(schema, path) {
-  return [formatName(path), formatType(schema), schema.description];
+  return [formatName(path), formatType(schema), schema.description || ''];
 }
 
 function flatten(arrays) {
@@ -112,9 +110,7 @@ function completeSchema(schema, schemas) {
     if (!refSchema) {
       throw new Error('Could not find schema for: ' + schema.$ref);
     }
-    const newSchema = assign(assign({}, refSchema), schema);
-    console.log(newSchema);
-    return newSchema;
+    return assign(assign({}, refSchema), schema);
   }
   return schema;
 }
