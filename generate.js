@@ -56,10 +56,23 @@ function generateRowsForArray(schema, path, schemas) {
     generateRowsForSchema(schema.items, newPath, schemas));
 }
 
-function generateRowsForBranch(type, schema, path, schemas) {
-  const rows = generateRowsForSchema(schema, path, schemas);
-  const message = 'There are other schemas for: ' + path.join('.');
-  return [['TODO', type, message]].concat(rows);
+function removeDuplicates(rows) {
+  const hash = {};
+  const result = [];
+  rows.forEach(row => {
+    const key = row.join('|');
+    if (!hash[key]) {
+      result.push(row);
+      hash[key] = true;
+    }
+  });
+  return result;
+}
+
+function generateRowsForBranch(type, branchSchemas, path, schemas) {
+  const rows = flatten(branchSchemas.map(branchSchema =>
+    generateRowsForSchema(branchSchema, path, schemas)));
+  return [['TODO', type, path.join('.')]].concat(removeDuplicates(rows));
 }
 
 function generateRowsForCompleteSchema(schema, path, schemas) {
@@ -76,10 +89,10 @@ function generateRowsForCompleteSchema(schema, path, schemas) {
     return generateRowsForObject(schema, path, schemas);
   }
   if (schema.oneOf) {
-    return generateRowsForBranch('oneOf', schema.oneOf[0], path, schemas);
+    return generateRowsForBranch('oneOf', schema.oneOf, path, schemas);
   }
   if (schema.anyOf) {
-    return generateRowsForBranch('anyOf', schema.anyOf[0], path, schemas);
+    return generateRowsForBranch('anyOf', schema.anyOf, path, schemas);
   }
   return [formatRow(schema, path)];
 }
