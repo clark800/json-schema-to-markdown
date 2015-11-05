@@ -51,6 +51,11 @@ function includes(array, item) {
 
 function sortKeys(keys, requiredKeys) {
   const result = requiredKeys ? requiredKeys.slice() : [];
+  result.forEach(key => {
+    if (!includes(keys, key)) {
+      throw new Error('Property in "required" not in "properties": ' + key);
+    }
+  });
   keys.sort().forEach(key => {
     if (!includes(result, key)) {
       result.push(key);
