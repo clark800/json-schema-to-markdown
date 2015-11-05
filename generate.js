@@ -55,12 +55,9 @@ function generateRowsForObject(schema, path, schemas, isRequired) {
 
 function generateRowsForArray(schema, path, schemas, isRequired) {
   const firstRow = formatRow(schema, path, isRequired);
-  if (!schema.items.properties) {
-    return [firstRow];
-  }
   const newPath = path.slice(0, -1).concat([path.slice(-1)[0] + '[]']);
-  return [firstRow].concat(
-    generateRowsForSchema(schema.items, newPath, schemas, true));
+  const rows = generateRowsForSchema(schema.items, newPath, schemas, true);
+  return rows.length > 1 ? [firstRow].concat(rows) : [firstRow];
 }
 
 function removeDuplicates(rows) {
