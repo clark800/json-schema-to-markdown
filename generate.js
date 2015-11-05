@@ -26,7 +26,10 @@ function formatType(schema) {
   if (schema.link) {
     return '[' + schema.title + '](#' + schema.link + ')';
   }
-  return schema.type || schema.$ref || 'object';
+  if (schema.format) {
+    return schema.format + ' string';
+  }
+  return schema.type || 'object';
 }
 
 function formatRow(schema, path, isRequired) {
@@ -43,8 +46,19 @@ function includes(array, item) {
   return array && array.indexOf(item) !== -1;
 }
 
+function sortKeys(keys, requiredKeys) {
+  const result = requiredKeys ? requiredKeys.slice() : [];
+  keys.sort().forEach(key => {
+    if (!includes(result, key)) {
+      result.push(key);
+    }
+  });
+  return result;
+}
+
 function generateRowsForObject(schema, path, schemas, isRequired) {
-  const rows = flatten(Object.keys(schema.properties).sort().map(name => {
+  const keys = sortKeys(Object.keys(schema.properties), schema.required);
+  const rows = flatten(keys.map(name => {
     const isRequiredField = includes(schema.required, name);
     return generateRowsForSchema(
       schema.properties[name], path.concat([name]), schemas, isRequiredField);
