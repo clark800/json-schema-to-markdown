@@ -32,10 +32,10 @@ function formatType(schema) {
   return schema.type || 'object';
 }
 
-function formatRow(schema, path, isRequired) {
+function formatRow(schema, path, isRequired, typeOverride) {
   const description = (isRequired ? '' : '*Optional* ')
                     + (schema.description || '');
-  return [formatName(path), formatType(schema), description];
+  return [formatName(path), typeOverride || formatType(schema), description];
 }
 
 function flatten(arrays) {
@@ -68,10 +68,14 @@ function generateRowsForObject(schema, path, schemas, isRequired) {
 }
 
 function generateRowsForArray(schema, path, schemas, isRequired) {
-  const firstRow = formatRow(schema, path, isRequired);
   const newPath = path.slice(0, -1).concat([path.slice(-1)[0] + '[]']);
   const rows = generateRowsForSchema(schema.items, newPath, schemas, true);
-  return rows.length > 1 ? [firstRow].concat(rows) : [firstRow];
+  if (rows.length === 1) {
+    const typeOverride = 'array\<' + rows[0][1] + '\>';
+    return [formatRow(schema, path, isRequired, typeOverride)];
+  }
+  const firstRow = formatRow(schema, path, isRequired);
+  return [firstRow].concat(rows);
 }
 
 function removeDuplicates(rows) {
