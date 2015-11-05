@@ -29,6 +29,9 @@ function formatType(schema) {
   if (schema.format) {
     return schema.format + ' string';
   }
+  if (schema.enum) {
+    return 'string';
+  }
   return schema.type || 'object';
 }
 
