@@ -5,6 +5,10 @@
   "keywords": ["json", "schema", "jsonschema", "markdown", "table"],
   "license": "ISC",
   "author": "Chris Clark",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:clark800/json-schema-to-markdown.git"
+  },
   "bin": {
     "json-schema-to-markdown": "./json-schema-to-markdown.js"
   }
