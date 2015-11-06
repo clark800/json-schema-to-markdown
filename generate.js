@@ -3,7 +3,15 @@
 const fs = require('fs');
 const join = require('path').join;
 
+
 // rows are represented as an array of three strings: name, type, description
+function includes(array, item) {
+  return array && array.indexOf(item) !== -1;
+}
+
+function flatten(arrays) {
+  return [].concat.apply([], arrays);
+}
 
 function formatTable(rows) {
   const header = ['Name', 'Type', 'Description'];
@@ -24,7 +32,8 @@ function formatName(path) {
 
 function formatType(schema) {
   if (schema.link) {
-    return '[' + schema.title + '](#' + schema.link + ')';
+    const prefix = includes(schema.link, '://') ? '' : '#';
+    return '[' + schema.title + '](' + prefix + schema.link + ')';
   }
   if (schema.format) {
     return schema.format + ' string';
@@ -39,14 +48,6 @@ function formatRow(schema, path, isRequired, typeOverride) {
   const description = (isRequired ? '' : '*Optional* ')
                     + (schema.description || '');
   return [formatName(path), typeOverride || formatType(schema), description];
-}
-
-function flatten(arrays) {
-  return [].concat.apply([], arrays);
-}
-
-function includes(array, item) {
-  return array && array.indexOf(item) !== -1;
 }
 
 function sortKeys(keys, requiredKeys) {
