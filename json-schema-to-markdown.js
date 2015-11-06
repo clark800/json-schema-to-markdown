@@ -1,7 +1,10 @@
+#!/usr/bin/env node --harmony
+
 /* eslint no-use-before-define: [2, "nofunc"] */
 'use strict';
 const fs = require('fs');
 const join = require('path').join;
+const dirname = require('path').dirname;
 
 
 // rows are represented as an array of three strings: name, type, description
@@ -119,6 +122,10 @@ function generateRowsForCompleteSchema(schema, path, schemas, isRequired) {
   if (schema.properties) {
     return generateRowsForObject(schema, path, schemas, isRequired);
   }
+  if (schema.additionalProperties) {
+    return generateRowsForSchema(schema.additionalProperties,
+      path.concat('\\*'), schemas, isRequired);
+  }
   if (schema.oneOf) {
     return generateRowsForBranch(
       'oneOf', schema.oneOf, path, schemas, isRequired);
@@ -188,12 +195,14 @@ function loadSchemas(schemaDirectory) {
 }
 
 function main() {
-  if (process.argv.length !== 4) {
+  if (process.argv.length !== 3 && process.argv.length !== 4) {
     console.error('usage: generate SCHEMA [SCHEMASDIR]');
     process.exit(2);
   }
   const filepath = process.argv[2];
-  const schemas = process.argv.length > 3 ? loadSchemas(process.argv[3]) : {};
+  const schemasPath = process.argv.length > 3 ?
+    process.argv[3] : dirname(filepath);
+  const schemas = loadSchemas(schemasPath);
   const schema = loadSchema(filepath);
   console.log(formatTable(generateRowsForSchema(schema, [], schemas, true)));
 }

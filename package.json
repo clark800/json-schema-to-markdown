@@ -1,0 +1,11 @@
+{
+  "name": "json-schema-to-markdown",
+  "version": "0.1.0",
+  "description": "Convert JSON schema to a markdown table",
+  "keywords": ["json", "schema", "jsonschema", "markdown", "table"],
+  "license": "ISC",
+  "author": "Chris Clark",
+  "bin": {
+    "json-schema-to-markdown": "./json-schema-to-markdown.js"
+  }
+}
