@@ -41,6 +41,9 @@ function formatType(schema) {
   if (schema.format) {
     return schema.format + ' string';
   }
+  if (schema.pattern) {
+    return 'string';
+  }
   if (schema.enum) {
     return 'string';
   }
@@ -106,11 +109,11 @@ function removeDuplicates(rows) {
 function generateRowsForBranch(type, branchSchemas, path, schemas, isRequired) {
   const rows = flatten(branchSchemas.map(branchSchema =>
     generateRowsForSchema(branchSchema, path, schemas, isRequired)));
-  return [['TODO', type, path.join('.')]].concat(removeDuplicates(rows));
+  return removeDuplicates(rows);
 }
 
 function generateRowsForCompleteSchema(schema, path, schemas, isRequired) {
-  if (schema.link) {
+  if (schema.link && path.length > 0) {
     return [formatRow(schema, path, isRequired)];
   }
   if (schema.type === 'array') {
