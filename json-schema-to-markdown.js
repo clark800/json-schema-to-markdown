@@ -106,9 +106,16 @@ function removeDuplicates(rows) {
   return result;
 }
 
-function generateRowsForBranch(type, branchSchemas, path, schemas, isRequired) {
+function overrideDescription(schema, description) {
+  const override = description ? {description: description} : {};
+  return assign(assign({}, schema), override);
+}
+
+function generateRowsForBranch(branchSchemas, path, description, schemas,
+    isRequired) {
   const rows = flatten(branchSchemas.map(branchSchema =>
-    generateRowsForSchema(branchSchema, path, schemas, isRequired)));
+    generateRowsForSchema(overrideDescription(branchSchema, description),
+      path, schemas, isRequired)));
   return removeDuplicates(rows);
 }
 
@@ -130,12 +137,12 @@ function generateRowsForCompleteSchema(schema, path, schemas, isRequired) {
       path.concat('\\*'), schemas, isRequired);
   }
   if (schema.oneOf) {
-    return generateRowsForBranch(
-      'oneOf', schema.oneOf, path, schemas, isRequired);
+    return generateRowsForBranch(schema.oneOf, path, schema.description,
+      schemas, isRequired);
   }
   if (schema.anyOf) {
-    return generateRowsForBranch(
-      'anyOf', schema.anyOf, path, schemas, isRequired);
+    return generateRowsForBranch(schema.anyOf, path, schema.description,
+      schemas, isRequired);
   }
   return [formatRow(schema, path, isRequired)];
 }
