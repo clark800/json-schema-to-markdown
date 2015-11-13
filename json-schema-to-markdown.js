@@ -6,10 +6,18 @@ const fs = require('fs');
 const join = require('path').join;
 const dirname = require('path').dirname;
 
-
 // rows are represented as an array of three strings: name, type, description
 function includes(array, item) {
   return array && array.indexOf(item) !== -1;
+}
+
+function any(array, condition) {
+  for (var i = 0; i < array.length; i++) {
+    if (condition(array[i])) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function flatten(arrays) {
@@ -113,10 +121,18 @@ function overrideDescription(schema, description) {
 
 function generateRowsForBranch(branchSchemas, path, description, schemas,
     isRequired) {
-  const rows = flatten(branchSchemas.map(branchSchema =>
+  const nonNullSchemas = branchSchemas.filter(schema => schema.type !== 'null');
+  const rows = flatten(nonNullSchemas.map(branchSchema =>
     generateRowsForSchema(overrideDescription(branchSchema, description),
       path, schemas, isRequired)));
-  return removeDuplicates(rows);
+  const result = removeDuplicates(rows);
+  const hasNull = (nonNullSchemas.length < branchSchemas.length);
+  if (hasNull) {
+    for (var i = 0; i < result.length; i++) {
+      result[i][1] = result[i][1] + ',null';
+    }
+  }
+  return result;
 }
 
 function generateRowsForCompleteSchema(schema, path, schemas, isRequired) {
