@@ -13,9 +13,15 @@ function flatten(arrays) {
   return [].concat.apply([], arrays);
 }
 
-function formatTable(rows) {
-  const header = ['Name', 'Type', 'Description'];
-  const divider = ['----', '----', '-----------'];
+function formatTable(rows, additionalColumns) {
+  var header = ['Name', 'Type', 'Description'];
+  var divider = ['----', '----', '-----------'];
+
+  if (additionalColumns) {
+      header = header.concat(additionalColumns.map(column => column.headerName));
+      divider = divider.concat(additionalColumns.map(column => '-'.repeat(column.headerName.length)));
+  }
+
   const allRows = [header, divider].concat(rows);
   return allRows.map(row => row.join(' | ')).join('\n');
 }
@@ -47,10 +53,17 @@ function formatType(schema) {
   return schema.type || 'object';
 }
 
-function formatRow(schema, path, isRequired, typeOverride) {
+function formatRow(schema, path, isRequired, typeOverride, additionalColumns) {
   const description = (isRequired ? '' : '*Optional* ')
                     + (schema.description || '');
-  return [formatName(path), typeOverride || formatType(schema), description];
+
+  var row = [formatName(path), typeOverride || formatType(schema), description];
+
+  var additionalColumnData = additionalColumns ? additionalColumns.map(column => schema[column.schemaName] ? schema[column.schemaName] : "N/A") : null
+
+  row = row.concat(additionalColumnData)
+
+  return row;
 }
 
 function sortKeys(keys, requiredKeys) {
@@ -68,25 +81,26 @@ function sortKeys(keys, requiredKeys) {
   return result;
 }
 
-function generateRowsForObject(schema, path, schemas, isRequired) {
+function generateRowsForObject(schema, path, schemas, isRequired, additionalColumns) {
   const keys = sortKeys(Object.keys(schema.properties), schema.required);
   const rows = flatten(keys.map(name => {
     const isRequiredField = includes(schema.required, name);
+
     return generateRowsForSchema(
-      schema.properties[name], path.concat([name]), schemas, isRequiredField);
+      schema.properties[name], path.concat([name]), schemas, isRequiredField, additionalColumns);
   }));
   return path.length > 0 ?
-    [formatRow(schema, path, isRequired)].concat(rows) : rows;
+    [formatRow(schema, path, isRequired, null, additionalColumns)].concat(rows) : rows;
 }
 
-function generateRowsForArray(schema, path, schemas, isRequired) {
+function generateRowsForArray(schema, path, schemas, isRequired, additionalColumns) {
   const newPath = path.slice(0, -1).concat([path.slice(-1)[0] + '[]']);
-  const rows = generateRowsForSchema(schema.items, newPath, schemas, true);
+  const rows = generateRowsForSchema(schema.items, newPath, schemas, true, additionalColumns);
   if (rows.length === 1) {
     const typeOverride = 'array\\<' + rows[0][1] + '\\>';
-    return [formatRow(schema, path, isRequired, typeOverride)];
+    return [formatRow(schema, path, isRequired, typeOverride, additionalColumns)];
   }
-  const firstRow = formatRow(schema, path, isRequired);
+  const firstRow = formatRow(schema, path, isRequired, null, additionalColumns);
   return [firstRow].concat(rows);
 }
 
@@ -109,11 +123,11 @@ function overrideDescription(schema, description) {
 }
 
 function generateRowsForBranch(branchSchemas, path, description, schemas,
-    isRequired) {
+    isRequired, additionalColumns) {
   const nonNullSchemas = branchSchemas.filter(schema => schema.type !== 'null');
   const rows = flatten(nonNullSchemas.map(branchSchema =>
     generateRowsForSchema(overrideDescription(branchSchema, description),
-      path, schemas, isRequired)));
+      path, schemas, isRequired, additionalColumns)));
   const result = removeDuplicates(rows);
   const hasNull = (nonNullSchemas.length < branchSchemas.length);
   if (hasNull) {
@@ -124,32 +138,35 @@ function generateRowsForBranch(branchSchemas, path, description, schemas,
   return result;
 }
 
-function generateRowsForCompleteSchema(schema, path, schemas, isRequired) {
+function generateRowsForCompleteSchema(schema, path, schemas, isRequired, additionalColumns) {
   if (schema.link && path.length > 0) {
-    return [formatRow(schema, path, isRequired)];
+    return [formatRow(schema, path, isRequired, null, additionalColumns)];
   }
+
   if (schema.type === 'array') {
     if (path.length > 0) {
-      return generateRowsForArray(schema, path, schemas, isRequired);
+      return generateRowsForArray(schema, path, schemas, isRequired, additionalColumns);
     }
-    return generateRowsForSchema(schema.items, path, schemas, true);
+    return generateRowsForSchema(schema.items, path, schemas, true, additionalColumns);
   }
+
   if (schema.properties) {
-    return generateRowsForObject(schema, path, schemas, isRequired);
+    return generateRowsForObject(schema, path, schemas, isRequired, additionalColumns);
   }
+
   if (schema.additionalProperties) {
-    return generateRowsForSchema(schema.additionalProperties,
-      path.concat('\\*'), schemas, isRequired);
+    return generateRowsForSchema(schema.additionalProperties, path.concat('\\*'), schemas, isRequired, additionalColumns);
   }
+
   if (schema.oneOf) {
-    return generateRowsForBranch(schema.oneOf, path, schema.description,
-      schemas, isRequired);
+    return generateRowsForBranch(schema.oneOf, path, schema.description, schemas, isRequired, additionalColumns);
   }
+
   if (schema.anyOf) {
-    return generateRowsForBranch(schema.anyOf, path, schema.description,
-      schemas, isRequired);
+    return generateRowsForBranch(schema.anyOf, path, schema.description, schemas, isRequired, additionalColumns);
   }
-  return [formatRow(schema, path, isRequired)];
+
+  return [formatRow(schema, path, isRequired, null, additionalColumns)];
 }
 
 function assign(destination, source) {
@@ -172,10 +189,10 @@ function completeSchema(schema, schemas) {
   return schema;
 }
 
-function generateRowsForSchema(schema, path, schemas, isRequired) {
+function generateRowsForSchema(schema, path, schemas, isRequired, additionalColumns) {
   const completedSchema = completeSchema(schema, schemas);
   return generateRowsForCompleteSchema(completedSchema, path, schemas,
-    isRequired);
+    isRequired, additionalColumns);
 }
 
 function recursivelyListDirectory(directory) {
@@ -209,8 +226,8 @@ function loadSchemas(schemaDirectory) {
   return schemas;
 }
 
-function render(schema, schemas) {
-  return formatTable(generateRowsForSchema(schema, [], schemas || {}, true));
+function render(schema, schemas, additionalColumns) {
+  return formatTable(generateRowsForSchema(schema, [], schemas || {}, true, additionalColumns), additionalColumns);
 }
 
 function renderFromPaths(schemaPath, schemasPath) {
